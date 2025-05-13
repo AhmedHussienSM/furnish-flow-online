@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -99,13 +98,7 @@ const ProductDetail = () => {
       return;
     }
     
-    addToCart({
-      productId: product.id,
-      product: product as Product,
-      quantity,
-      selectedColor: selectedColorObj,
-      selectedSize: selectedSizeObj
-    });
+    addToCart(product, quantity, selectedColorObj, selectedSizeObj);
     
     toast.success("Added to cart successfully!");
   };
