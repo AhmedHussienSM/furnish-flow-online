@@ -8,7 +8,8 @@ import {
   Settings, 
   LogOut,
   UsersRound,
-  Layers
+  Layers,
+  Star
 } from 'lucide-react';
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -25,7 +26,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <nav className="p-4 space-y-1">
           <Link 
             to="/admin" 
-            className={`flex items-center p-2 rounded-md ${isActive('/admin') && !isActive('/admin/products') && !isActive('/admin/categories') && !isActive('/admin/orders') && !isActive('/admin/users') && !isActive('/admin/settings') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
+            className={`flex items-center p-2 rounded-md ${isActive('/admin') && !isActive('/admin/products') && !isActive('/admin/categories') && !isActive('/admin/orders') && !isActive('/admin/users') && !isActive('/admin/settings') && !isActive('/admin/reviews') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
           >
             <LayoutDashboard size={18} className="mr-2" />
             Dashboard
@@ -50,6 +51,13 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           >
             <ListOrdered size={18} className="mr-2" />
             Orders
+          </Link>
+          <Link 
+            to="/admin/reviews" 
+            className={`flex items-center p-2 rounded-md ${isActive('/admin/reviews') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
+          >
+            <Star size={18} className="mr-2" />
+            Reviews
           </Link>
           <Link 
             to="/admin/users" 

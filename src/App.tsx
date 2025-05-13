@@ -16,6 +16,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import CategoryPage from "./pages/CategoryPage";
 import AboutUs from "./pages/AboutUs";
 import ContactPage from "./pages/ContactPage";
+import ReviewPage from "./pages/ReviewPage";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/Login";
@@ -24,6 +25,9 @@ import ProductsList from "./pages/admin/ProductsList";
 import ProductForm from "./pages/admin/ProductForm";
 import CategoriesList from "./pages/admin/CategoriesList";
 import CategoryForm from "./pages/admin/CategoryForm";
+import UsersList from "./pages/admin/UsersList";
+import Settings from "./pages/admin/Settings";
+import ReviewsList from "./pages/admin/ReviewsList";
 
 // Components
 import Navbar from "./components/Navbar";
@@ -69,6 +73,8 @@ const App = () => (
                 <Footer />
               </div>
             } />
+            
+            <Route path="/review/:productId" element={<ReviewPage />} />
             
             <Route path="/category/:slug" element={
               <div className="flex flex-col min-h-screen">
@@ -127,6 +133,10 @@ const App = () => (
             <Route path="/admin/products/:productId" element={<ProductForm />} />
             <Route path="/admin/categories" element={<CategoriesList />} />
             <Route path="/admin/categories/:categoryId" element={<CategoryForm />} />
+            <Route path="/admin/users" element={<UsersList />} />
+            <Route path="/admin/reviews" element={<ReviewsList />} />
+            <Route path="/admin/settings" element={<Settings />} />
+            <Route path="/admin/orders" element={<Dashboard />} />
             
             <Route path="*" element={
               <div className="flex flex-col min-h-screen">

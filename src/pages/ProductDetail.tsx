@@ -1,373 +1,391 @@
 
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { products } from '../data/mockData';
-import { Size, Color } from '../types';
-import { ChevronRight, Star, Truck, Shield, ArrowLeft, Minus, Plus } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { useToast } from '../hooks/use-toast';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import { products } from '../data/mockData';
+import { Button } from '@/components/ui/button';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { Star, ShoppingCart, Truck, Clock, Shield, Pencil } from 'lucide-react';
+import { Product } from '../types';
 
 const ProductDetail = () => {
-  const { productId } = useParams<{ productId: string }>();
+  const { productId } = useParams();
+  const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { toast } = useToast();
   
-  const product = products.find(p => p.id === parseInt(productId || '0'));
-  
-  const [mainImage, setMainImage] = useState(product?.images[0] || '');
-  const [selectedColor, setSelectedColor] = useState<Color | null>(
-    product?.availableColors[0] || null
-  );
-  const [selectedSize, setSelectedSize] = useState<Size | null>(
-    product?.availableSizes[0] || null
-  );
+  const [selectedColor, setSelectedColor] = useState<string | undefined>();
+  const [selectedSize, setSelectedSize] = useState<string | undefined>();
   const [quantity, setQuantity] = useState(1);
-  const [showCustomSizeModal, setShowCustomSizeModal] = useState(false);
-  const [customDimensions, setCustomDimensions] = useState({
-    width: '',
-    height: '',
-    depth: '',
-    notes: '',
-  });
-
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  
+  const [isCustomSizeModalOpen, setIsCustomSizeModalOpen] = useState(false);
+  const [customWidth, setCustomWidth] = useState("");
+  const [customHeight, setCustomHeight] = useState("");
+  const [customDepth, setCustomDepth] = useState("");
+  const [customNotes, setCustomNotes] = useState("");
+  
+  // Find the product
+  const product = products.find(p => p.id === Number(productId));
+  
   if (!product) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="font-serif text-2xl mb-4">Product not found</h1>
-        <Link to="/products" className="text-furniture-primary hover:underline">
-          Return to all products
-        </Link>
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-serif mb-4">Product Not Found</h1>
+            <Button onClick={() => navigate('/products')}>Back to Products</Button>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
-
-  const incrementQuantity = () => {
-    if (quantity < product.stock) {
-      setQuantity(quantity + 1);
+  
+  const handleColorSelect = (colorValue: string) => {
+    setSelectedColor(colorValue);
+  };
+  
+  const handleSizeSelect = (sizeValue: string) => {
+    setSelectedSize(sizeValue);
+    if (sizeValue === 'custom') {
+      setIsCustomSizeModalOpen(true);
     }
   };
-
-  const decrementQuantity = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1);
+  
+  const handleQuantityChange = (change: number) => {
+    const newQuantity = quantity + change;
+    if (newQuantity >= 1 && newQuantity <= product.stock) {
+      setQuantity(newQuantity);
     }
   };
-
+  
   const handleAddToCart = () => {
-    if (!selectedColor || !selectedSize) {
-      toast({
-        title: 'Please select options',
-        description: 'Please select color and size before adding to cart',
-        variant: 'destructive',
-      });
+    if (!selectedColor) {
+      toast.error("Please select a color");
       return;
     }
-
-    addToCart(product, quantity, selectedColor, selectedSize);
-    toast({
-      title: 'Added to cart',
-      description: `${quantity} × ${product.name} has been added to your cart.`,
+    
+    if (!selectedSize) {
+      toast.error("Please select a size");
+      return;
+    }
+    
+    const selectedColorObj = product.availableColors.find(color => color.value === selectedColor);
+    const selectedSizeObj = selectedSize === 'custom' 
+      ? { id: 0, name: 'Custom', dimensions: `W:${customWidth}cm x H:${customHeight}cm x D:${customDepth}cm` }
+      : product.availableSizes.find(size => size.name === selectedSize);
+    
+    if (!selectedColorObj || !selectedSizeObj) {
+      toast.error("Please select valid options");
+      return;
+    }
+    
+    addToCart({
+      productId: product.id,
+      product: product as Product,
+      quantity,
+      selectedColor: selectedColorObj,
+      selectedSize: selectedSizeObj
+    });
+    
+    toast.success("Added to cart successfully!");
+  };
+  
+  const handleSubmitCustomSize = () => {
+    if (!customWidth || !customHeight || !customDepth) {
+      toast.error("Please provide all dimensions");
+      return;
+    }
+    
+    setIsCustomSizeModalOpen(false);
+    toast("Custom size saved", {
+      description: `W:${customWidth}cm x H:${customHeight}cm x D:${customDepth}cm`
     });
   };
-
-  const handleCustomSizeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const customSize: Size = {
-      id: 999,
-      name: 'Custom',
-      dimensions: `W: ${customDimensions.width}cm, H: ${customDimensions.height}cm, D: ${customDimensions.depth}cm`,
-    };
-    setSelectedSize(customSize);
-    setShowCustomSizeModal(false);
-  };
+  
+  // Mock reviews
+  const reviews = [
+    { id: 1, author: "Jane Smith", rating: 5, date: "April 15, 2025", comment: "Absolutely love this piece! The quality exceeded my expectations and it fits perfectly in my living room." },
+    { id: 2, author: "Michael Brown", rating: 4, date: "March 22, 2025", comment: "Great furniture, sturdy construction. Took away one star because the delivery was delayed by 2 days." },
+    { id: 3, author: "Sara Wilson", rating: 5, date: "February 8, 2025", comment: "Perfect size and color. Assembly was straightforward and the final result looks amazing in our home." }
+  ];
 
   return (
-    <div className="bg-white min-h-screen py-8">
-      <div className="container mx-auto px-4">
-        {/* Breadcrumbs */}
-        <nav className="flex text-sm mb-8">
-          <Link to="/" className="text-gray-500 hover:text-furniture-primary">Home</Link>
-          <ChevronRight size={16} className="mx-2 text-gray-400" />
-          <Link to="/products" className="text-gray-500 hover:text-furniture-primary">Products</Link>
-          <ChevronRight size={16} className="mx-2 text-gray-400" />
-          <Link 
-            to={`/category/${product.categoryId}`} 
-            className="text-gray-500 hover:text-furniture-primary"
-          >
-            {product.categoryId === 1 ? 'Living Room' : 
-             product.categoryId === 2 ? 'Bedroom' :
-             product.categoryId === 3 ? 'Dining Room' :
-             product.categoryId === 4 ? 'Office' : 'Outdoor'}
-          </Link>
-          <ChevronRight size={16} className="mx-2 text-gray-400" />
-          <span className="text-gray-900 font-medium">{product.name}</span>
-        </nav>
-
-        <div className="flex flex-col lg:flex-row gap-10">
+    <div className="flex flex-col min-h-screen">
+      <Navbar />
+      <main className="flex-grow container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Button variant="ghost" onClick={() => navigate('/products')}>
+            ← Back to Products
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Product Images */}
-          <div className="w-full lg:w-1/2">
-            <div className="mb-4">
+          <div className="space-y-4">
+            <div className="relative h-96 bg-gray-100 rounded-lg overflow-hidden">
               <img 
-                src={mainImage} 
+                src={product.images[activeImageIndex]} 
                 alt={product.name} 
-                className="w-full h-auto object-cover rounded-lg"
+                className="w-full h-full object-contain"
               />
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {product.images.map((img, index) => (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {product.images.map((image, index) => (
                 <button 
                   key={index}
-                  onClick={() => setMainImage(img)}
-                  className={`border rounded-md overflow-hidden ${mainImage === img ? 'border-furniture-primary' : 'border-gray-200'}`}
+                  className={`min-w-[80px] h-20 rounded-md overflow-hidden border-2 ${activeImageIndex === index ? 'border-furniture-primary' : 'border-transparent'}`}
+                  onClick={() => setActiveImageIndex(index)}
                 >
                   <img 
-                    src={img} 
-                    alt={`${product.name} view ${index + 1}`} 
-                    className="w-full h-24 object-cover"
+                    src={image} 
+                    alt={`${product.name} thumbnail ${index + 1}`} 
+                    className="w-full h-full object-cover"
                   />
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Product Details */}
-          <div className="w-full lg:w-1/2">
-            <h1 className="font-serif text-3xl sm:text-4xl font-medium mb-2">{product.name}</h1>
-            
-            {/* Rating */}
-            <div className="flex items-center mb-4">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, index) => (
-                  <Star
-                    key={index}
-                    size={18}
-                    fill={index < Math.floor(product.rating) ? "#D4AF37" : "none"}
-                    color={index < Math.floor(product.rating) ? "#D4AF37" : "#D1D5DB"}
-                    className="mr-0.5"
-                  />
-                ))}
+          
+          {/* Product Info & Options */}
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-serif mb-2">{product.name}</h1>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star 
+                      key={i} 
+                      size={18} 
+                      fill={i < product.rating ? "gold" : "none"} 
+                      color={i < product.rating ? "gold" : "gray"} 
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-500">({product.reviewCount} reviews)</span>
               </div>
-              <span className="ml-2 text-gray-600">
-                {product.rating} ({product.reviewCount} reviews)
-              </span>
+              <div className="text-2xl font-medium">${product.price.toFixed(2)}</div>
             </div>
             
-            {/* Price */}
-            <div className="text-2xl font-medium text-furniture-primary mb-6">
-              ${product.price.toFixed(2)}
-            </div>
+            <p className="text-gray-700">{product.description}</p>
             
-            {/* Description */}
-            <p className="text-gray-700 mb-6 leading-relaxed">
-              {product.description}
-            </p>
-            
-            {/* SKU */}
-            <p className="text-sm text-gray-500 mb-6">
-              SKU: {product.sku} | Stock: {product.stock > 0 ? `${product.stock} available` : 'Out of stock'}
-            </p>
-
-            {/* Color Selection */}
-            <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Color</h3>
-              <div className="flex flex-wrap gap-3">
-                {product.availableColors.map(color => (
-                  <button
-                    key={color.id}
-                    style={{ backgroundColor: color.value }}
-                    className={`w-10 h-10 rounded-full hover:scale-110 transition-transform ${
-                      selectedColor?.id === color.id ? 'ring-2 ring-offset-2 ring-furniture-primary' : ''
-                    }`}
-                    title={color.name}
-                    onClick={() => setSelectedColor(color)}
-                  />
-                ))}
+            <div className="space-y-4">
+              {/* Color Selection */}
+              <div>
+                <Label className="block mb-2">Color</Label>
+                <div className="flex flex-wrap gap-2">
+                  {product.availableColors.map((color) => (
+                    <button
+                      key={color.id}
+                      className={`w-10 h-10 rounded-full border ${selectedColor === color.value ? 'border-black ring-2 ring-offset-2 ring-black' : 'border-gray-300'}`}
+                      style={{ backgroundColor: color.value }}
+                      onClick={() => handleColorSelect(color.value)}
+                      aria-label={color.name}
+                    />
+                  ))}
+                </div>
+                {selectedColor && (
+                  <div className="mt-1 text-sm text-gray-500">
+                    Selected: {product.availableColors.find(c => c.value === selectedColor)?.name}
+                  </div>
+                )}
               </div>
-              {selectedColor && (
-                <p className="mt-2 text-sm text-gray-600">Selected: {selectedColor.name}</p>
-              )}
-            </div>
-            
-            {/* Size Selection */}
-            <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Size</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {product.availableSizes.map(size => (
-                  <button
-                    key={size.id}
-                    className={`border py-2 px-3 rounded-md transition-colors ${
-                      selectedSize?.id === size.id 
-                        ? 'border-furniture-primary bg-furniture-primary text-white' 
-                        : 'border-gray-300 hover:border-furniture-accent'
-                    }`}
-                    onClick={() => {
-                      if (size.name === 'Custom') {
-                        setShowCustomSizeModal(true);
-                      } else {
-                        setSelectedSize(size);
-                      }
-                    }}
+              
+              {/* Size Selection */}
+              <div>
+                <Label htmlFor="size-selection" className="block mb-2">Size</Label>
+                <Select onValueChange={handleSizeSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {product.availableSizes.map((size) => (
+                      <SelectItem key={size.id} value={size.name}>
+                        {size.name} ({size.dimensions})
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom Size</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Quantity Selection */}
+              <div>
+                <Label className="block mb-2">Quantity</Label>
+                <div className="flex items-center">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => handleQuantityChange(-1)}
+                    disabled={quantity <= 1}
                   >
-                    <span className="block">{size.name}</span>
-                    <span className="block text-xs mt-1">
-                      {size.name === 'Custom' ? 'Made to order' : size.dimensions}
-                    </span>
-                  </button>
-                ))}
+                    -
+                  </Button>
+                  <span className="w-12 text-center">{quantity}</span>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => handleQuantityChange(1)}
+                    disabled={quantity >= product.stock}
+                  >
+                    +
+                  </Button>
+                  <span className="ml-3 text-sm text-gray-500">
+                    {product.stock} items available
+                  </span>
+                </div>
               </div>
-              {selectedSize && selectedSize.name !== 'Custom' && (
-                <p className="mt-2 text-sm text-gray-600">Dimensions: {selectedSize.dimensions}</p>
-              )}
-              {selectedSize && selectedSize.name === 'Custom' && (
-                <p className="mt-2 text-sm text-gray-600">{selectedSize.dimensions}</p>
-              )}
-            </div>
-
-            {/* Quantity */}
-            <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Quantity</h3>
-              <div className="flex items-center">
-                <button
-                  onClick={decrementQuantity}
-                  disabled={quantity <= 1}
-                  className={`w-10 h-10 flex items-center justify-center border rounded-l-md ${
-                    quantity <= 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-100'
-                  }`}
-                >
-                  <Minus size={16} />
-                </button>
-                <input
-                  type="number"
-                  min="1"
-                  max={product.stock}
-                  value={quantity}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (val >= 1 && val <= product.stock) {
-                      setQuantity(val);
-                    }
-                  }}
-                  className="w-16 h-10 text-center border-y"
-                />
-                <button
-                  onClick={incrementQuantity}
-                  disabled={quantity >= product.stock}
-                  className={`w-10 h-10 flex items-center justify-center border rounded-r-md ${
-                    quantity >= product.stock ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-100'
-                  }`}
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Add to Cart */}
-            <div className="mb-8">
-              <button
+              
+              {/* Add to Cart Button */}
+              <Button 
+                className="w-full bg-furniture-primary hover:bg-furniture-primary/90"
                 onClick={handleAddToCart}
-                disabled={product.stock === 0}
-                className={`w-full py-3 px-6 rounded-md font-medium ${
-                  product.stock === 0
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-furniture-primary hover:bg-furniture-accent text-white'
-                }`}
               >
-                {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-              </button>
-            </div>
-
-            {/* Shipping & Returns */}
-            <div className="border-t border-b py-4 space-y-3">
-              <div className="flex items-center">
-                <Truck size={20} className="text-furniture-primary mr-2" />
-                <span>Free shipping on orders over $1000</span>
-              </div>
-              <div className="flex items-center">
-                <Shield size={20} className="text-furniture-primary mr-2" />
-                <span>3-year warranty for all furniture</span>
+                <ShoppingCart className="mr-2 h-5 w-5" />
+                Add to Cart
+              </Button>
+              
+              {/* Product Info Boxes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div className="p-4 bg-gray-50 rounded-lg flex items-start gap-3">
+                  <Truck className="text-furniture-primary" />
+                  <div>
+                    <h3 className="font-medium text-sm">Free Delivery</h3>
+                    <p className="text-xs text-gray-500">For orders above $500</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg flex items-start gap-3">
+                  <Clock className="text-furniture-primary" />
+                  <div>
+                    <h3 className="font-medium text-sm">Estimated Delivery</h3>
+                    <p className="text-xs text-gray-500">3-5 business days</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg flex items-start gap-3">
+                  <Shield className="text-furniture-primary" />
+                  <div>
+                    <h3 className="font-medium text-sm">2-Year Warranty</h3>
+                    <p className="text-xs text-gray-500">On all furniture items</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Back to products */}
-        <div className="mt-12">
-          <Link to="/products" className="inline-flex items-center text-furniture-primary hover:text-furniture-accent">
-            <ArrowLeft size={18} className="mr-2" />
-            Back to all products
-          </Link>
+        
+        {/* Reviews Section */}
+        <div className="mt-16">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-serif">Customer Reviews</h2>
+            <Button onClick={() => navigate(`/review/${productId}`)} className="flex items-center">
+              <Pencil className="mr-2 h-4 w-4" />
+              Write a Review
+            </Button>
+          </div>
+          
+          {/* Review Cards */}
+          <div className="space-y-6">
+            {reviews.map(review => (
+              <div key={review.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                <div className="flex justify-between mb-2">
+                  <h3 className="font-medium">{review.author}</h3>
+                  <span className="text-sm text-gray-500">{review.date}</span>
+                </div>
+                <div className="flex mb-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star 
+                      key={i} 
+                      size={16} 
+                      fill={i < review.rating ? "gold" : "none"} 
+                      color={i < review.rating ? "gold" : "gray"} 
+                    />
+                  ))}
+                </div>
+                <p className="text-gray-700">{review.comment}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-
-      {/* Custom Size Modal */}
-      {showCustomSizeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="font-serif text-2xl font-medium mb-4">Custom Dimensions</h3>
-            <form onSubmit={handleCustomSizeSubmit}>
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm mb-1">Width (cm)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="Width"
-                    value={customDimensions.width}
-                    onChange={(e) => setCustomDimensions({...customDimensions, width: e.target.value})}
-                    className="w-full border rounded-md px-3 py-2"
+        
+        {/* Custom Size Modal */}
+        <Dialog open={isCustomSizeModalOpen} onOpenChange={setIsCustomSizeModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Custom Size</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="width">Width (cm)</Label>
+                  <Input 
+                    id="width" 
+                    value={customWidth} 
+                    onChange={(e) => setCustomWidth(e.target.value)} 
+                    type="number" 
+                    min="1"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm mb-1">Height (cm)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="Height"
-                    value={customDimensions.height}
-                    onChange={(e) => setCustomDimensions({...customDimensions, height: e.target.value})}
-                    className="w-full border rounded-md px-3 py-2"
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="height">Height (cm)</Label>
+                  <Input 
+                    id="height" 
+                    value={customHeight} 
+                    onChange={(e) => setCustomHeight(e.target.value)} 
+                    type="number" 
+                    min="1"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm mb-1">Depth (cm)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="Depth"
-                    value={customDimensions.depth}
-                    onChange={(e) => setCustomDimensions({...customDimensions, depth: e.target.value})}
-                    className="w-full border rounded-md px-3 py-2"
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="depth">Depth (cm)</Label>
+                  <Input 
+                    id="depth" 
+                    value={customDepth} 
+                    onChange={(e) => setCustomDepth(e.target.value)} 
+                    type="number" 
+                    min="1"
                   />
                 </div>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm mb-1">Special Instructions (optional)</label>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="notes">Additional Notes</Label>
                 <textarea
-                  placeholder="Any specific requirements for your custom size"
-                  value={customDimensions.notes}
-                  onChange={(e) => setCustomDimensions({...customDimensions, notes: e.target.value})}
-                  className="w-full border rounded-md px-3 py-2 resize-none h-24"
-                ></textarea>
+                  id="notes"
+                  className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="Any special requirements or details..."
+                  value={customNotes}
+                  onChange={(e) => setCustomNotes(e.target.value)}
+                />
               </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCustomSizeModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-furniture-primary hover:bg-furniture-accent text-white rounded-md"
-                >
-                  Apply Custom Size
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCustomSizeModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSubmitCustomSize}>Save Custom Size</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </main>
+      <Footer />
     </div>
   );
 };
