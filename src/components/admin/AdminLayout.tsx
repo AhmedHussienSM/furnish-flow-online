@@ -9,7 +9,9 @@ import {
   LogOut,
   UsersRound,
   Layers,
-  Star
+  Star,
+  ShieldCheck,
+  BarChart
 } from 'lucide-react';
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -26,7 +28,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <nav className="p-4 space-y-1">
           <Link 
             to="/admin" 
-            className={`flex items-center p-2 rounded-md ${isActive('/admin') && !isActive('/admin/products') && !isActive('/admin/categories') && !isActive('/admin/orders') && !isActive('/admin/users') && !isActive('/admin/settings') && !isActive('/admin/reviews') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
+            className={`flex items-center p-2 rounded-md ${isActive('/admin') && !isActive('/admin/products') && !isActive('/admin/categories') && !isActive('/admin/orders') && !isActive('/admin/users') && !isActive('/admin/settings') && !isActive('/admin/reviews') && !isActive('/admin/permissions') && !isActive('/admin/revenue') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
           >
             <LayoutDashboard size={18} className="mr-2" />
             Dashboard
@@ -65,6 +67,20 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           >
             <UsersRound size={18} className="mr-2" />
             Users
+          </Link>
+          <Link 
+            to="/admin/revenue" 
+            className={`flex items-center p-2 rounded-md ${isActive('/admin/revenue') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
+          >
+            <BarChart size={18} className="mr-2" />
+            Revenue
+          </Link>
+          <Link 
+            to="/admin/permissions" 
+            className={`flex items-center p-2 rounded-md ${isActive('/admin/permissions') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
+          >
+            <ShieldCheck size={18} className="mr-2" />
+            Permissions
           </Link>
           <Link 
             to="/admin/settings" 

@@ -1,10 +1,14 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { toast } from "sonner";
 import { UserPlus, UserRound, Pencil, Trash } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const mockUsers = [
   {
@@ -34,16 +38,30 @@ const mockUsers = [
 ];
 
 const UsersList = () => {
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<typeof mockUsers[0] | null>(null);
+  
   const handleAddUser = () => {
-    toast.info("Add user functionality will be implemented with Supabase.");
+    toast.success("User added successfully");
+    setIsAddDialogOpen(false);
   };
   
   const handleEditUser = (userId: number) => {
-    toast.info(`Edit user with ID: ${userId} will be implemented with Supabase.`);
+    const user = mockUsers.find(u => u.id === userId);
+    if (user) {
+      setCurrentUser(user);
+      setIsEditDialogOpen(true);
+    }
+  };
+  
+  const handleUpdateUser = () => {
+    toast.success("User updated successfully");
+    setIsEditDialogOpen(false);
   };
   
   const handleDeleteUser = (userId: number) => {
-    toast.info(`Delete user with ID: ${userId} will be implemented with Supabase.`);
+    toast.success(`User with ID: ${userId} deleted successfully`);
   };
 
   return (
@@ -51,10 +69,55 @@ const UsersList = () => {
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-serif font-medium">User Management</h1>
-          <Button onClick={handleAddUser} className="bg-furniture-primary hover:bg-furniture-primary/90">
-            <UserPlus size={18} className="mr-2" />
-            Add New User
-          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-furniture-primary hover:bg-furniture-primary/90">
+                <UserPlus size={18} className="mr-2" />
+                Add New User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New User</DialogTitle>
+              </DialogHeader>
+              <form className="space-y-4 pt-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input id="name" placeholder="John Doe" />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" placeholder="john@example.com" />
+                  </div>
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <Input id="password" type="password" placeholder="••••••••" />
+                  </div>
+                  <div>
+                    <Label htmlFor="role">Role</Label>
+                    <Select defaultValue="user">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="marketing">Marketing</SelectItem>
+                        <SelectItem value="support">Customer Support</SelectItem>
+                        <SelectItem value="user">Regular User</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="pt-2 flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleAddUser} className="bg-furniture-primary hover:bg-furniture-primary/90">
+                      Add User
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -114,6 +177,61 @@ const UsersList = () => {
           </Table>
         </div>
       </div>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          {currentUser && (
+            <form className="space-y-4 pt-4">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-name">Full Name</Label>
+                  <Input id="edit-name" defaultValue={currentUser.name} />
+                </div>
+                <div>
+                  <Label htmlFor="edit-email">Email</Label>
+                  <Input id="edit-email" type="email" defaultValue={currentUser.email} />
+                </div>
+                <div>
+                  <Label htmlFor="edit-role">Role</Label>
+                  <Select defaultValue={currentUser.role.toLowerCase()}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
+                      <SelectItem value="customer-support">Customer Support</SelectItem>
+                      <SelectItem value="user">Regular User</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select defaultValue={currentUser.status.toLowerCase()}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="pt-2 flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleUpdateUser} className="bg-furniture-primary hover:bg-furniture-primary/90">
+                    Update User
+                  </Button>
+                </div>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

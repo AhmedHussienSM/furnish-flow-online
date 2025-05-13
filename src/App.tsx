@@ -28,6 +28,9 @@ import CategoryForm from "./pages/admin/CategoryForm";
 import UsersList from "./pages/admin/UsersList";
 import Settings from "./pages/admin/Settings";
 import ReviewsList from "./pages/admin/ReviewsList";
+import OrdersList from "./pages/admin/OrdersList";
+import Permissions from "./pages/admin/Permissions";
+import Revenue from "./pages/admin/Revenue";
 
 // Components
 import Navbar from "./components/Navbar";
@@ -135,8 +138,10 @@ const App = () => (
             <Route path="/admin/categories/:categoryId" element={<CategoryForm />} />
             <Route path="/admin/users" element={<UsersList />} />
             <Route path="/admin/reviews" element={<ReviewsList />} />
+            <Route path="/admin/orders" element={<OrdersList />} />
+            <Route path="/admin/permissions" element={<Permissions />} />
+            <Route path="/admin/revenue" element={<Revenue />} />
             <Route path="/admin/settings" element={<Settings />} />
-            <Route path="/admin/orders" element={<Dashboard />} />
             
             <Route path="*" element={
               <div className="flex flex-col min-h-screen">
