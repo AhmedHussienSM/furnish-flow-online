@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -8,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { products } from '../../data/mockData';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { Plus } from 'lucide-react';
 
 const ProductForm = () => {
   const { productId } = useParams();

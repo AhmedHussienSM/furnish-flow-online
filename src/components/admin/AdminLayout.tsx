@@ -5,10 +5,10 @@ import {
   LayoutDashboard, 
   ShoppingBag, 
   ListOrdered, 
-  Category, 
   Settings, 
   LogOut,
-  UsersRound
+  UsersRound,
+  Layers
 } from 'lucide-react';
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,7 +41,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             to="/admin/categories" 
             className={`flex items-center p-2 rounded-md ${isActive('/admin/categories') ? 'bg-furniture-primary text-white' : 'hover:bg-gray-100'}`}
           >
-            <Category size={18} className="mr-2" />
+            <Layers size={18} className="mr-2" />
             Categories
           </Link>
           <Link 
