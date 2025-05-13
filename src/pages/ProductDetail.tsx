@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { products } from '../data/mockData';
 import { Button } from '@/components/ui/button';
 import { 
   Select, 
@@ -22,13 +21,21 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Star, ShoppingCart, Truck, Clock, Shield, Pencil } from 'lucide-react';
-import { Product } from '../types';
+import { Star, ShoppingCart, Truck, Clock, Shield, Pencil, Loader2 } from 'lucide-react';
+import { Product, Color, Size } from '../types';
+import { api } from '../lib/api';
 
 const ProductDetail = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  
+  const [product, setProduct] = useState<Product | null>(null);
+  const [colors, setColors] = useState<Color[]>([]);
+  const [sizes, setSizes] = useState<Size[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const [selectedColor, setSelectedColor] = useState<string | undefined>();
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
@@ -40,24 +47,39 @@ const ProductDetail = () => {
   const [customHeight, setCustomHeight] = useState("");
   const [customDepth, setCustomDepth] = useState("");
   const [customNotes, setCustomNotes] = useState("");
-  
-  // Find the product
-  const product = products.find(p => p.id === Number(productId));
-  
-  if (!product) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        <Navbar />
-        <main className="flex-grow container mx-auto px-4 py-8">
-          <div className="text-center py-12">
-            <h1 className="text-2xl font-serif mb-4">Product Not Found</h1>
-            <Button onClick={() => navigate('/products')}>Back to Products</Button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+
+  useEffect(() => {
+    const fetchProductData = async () => {
+      try {
+        setLoading(true);
+        
+        if (!productId) {
+          setError('Product ID is required');
+          setLoading(false);
+          return;
+        }
+
+        const productData = await api.getProductById(Number(productId));
+        
+        if (!productData) {
+          setError('Product not found');
+          setLoading(false);
+          return;
+        }
+
+        setProduct(productData);
+        setColors(productData.colors || []);
+        setSizes(productData.sizes || []);
+        setReviews(productData.reviews || []);
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to load product data. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    fetchProductData();
+  }, [productId]);
   
   const handleColorSelect = (colorValue: string) => {
     setSelectedColor(colorValue);
@@ -71,6 +93,7 @@ const ProductDetail = () => {
   };
   
   const handleQuantityChange = (change: number) => {
+    if (!product) return;
     const newQuantity = quantity + change;
     if (newQuantity >= 1 && newQuantity <= product.stock) {
       setQuantity(newQuantity);
@@ -78,6 +101,8 @@ const ProductDetail = () => {
   };
   
   const handleAddToCart = () => {
+    if (!product) return;
+
     if (!selectedColor) {
       toast.error("Please select a color");
       return;
@@ -88,10 +113,10 @@ const ProductDetail = () => {
       return;
     }
     
-    const selectedColorObj = product.availableColors.find(color => color.value === selectedColor);
+    const selectedColorObj = colors.find(color => color.value === selectedColor);
     const selectedSizeObj = selectedSize === 'custom' 
       ? { id: 0, name: 'Custom', dimensions: `W:${customWidth}cm x H:${customHeight}cm x D:${customDepth}cm` }
-      : product.availableSizes.find(size => size.name === selectedSize);
+      : sizes.find(size => size.name === selectedSize);
     
     if (!selectedColorObj || !selectedSizeObj) {
       toast.error("Please select valid options");
@@ -114,13 +139,36 @@ const ProductDetail = () => {
       description: `W:${customWidth}cm x H:${customHeight}cm x D:${customDepth}cm`
     });
   };
-  
-  // Mock reviews
-  const reviews = [
-    { id: 1, author: "Jane Smith", rating: 5, date: "April 15, 2025", comment: "Absolutely love this piece! The quality exceeded my expectations and it fits perfectly in my living room." },
-    { id: 2, author: "Michael Brown", rating: 4, date: "March 22, 2025", comment: "Great furniture, sturdy construction. Took away one star because the delivery was delayed by 2 days." },
-    { id: 3, author: "Sara Wilson", rating: 5, date: "February 8, 2025", comment: "Perfect size and color. Assembly was straightforward and the final result looks amazing in our home." }
-  ];
+
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <Loader2 className="animate-spin" size={24} />
+            <span>Loading product details...</span>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-serif mb-4">{error || 'Product Not Found'}</h1>
+            <Button onClick={() => navigate('/products')}>Back to Products</Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -186,7 +234,7 @@ const ProductDetail = () => {
               <div>
                 <Label className="block mb-2">Color</Label>
                 <div className="flex flex-wrap gap-2">
-                  {product.availableColors.map((color) => (
+                  {colors.map((color) => (
                     <button
                       key={color.id}
                       className={`w-10 h-10 rounded-full border ${selectedColor === color.value ? 'border-black ring-2 ring-offset-2 ring-black' : 'border-gray-300'}`}
@@ -198,7 +246,7 @@ const ProductDetail = () => {
                 </div>
                 {selectedColor && (
                   <div className="mt-1 text-sm text-gray-500">
-                    Selected: {product.availableColors.find(c => c.value === selectedColor)?.name}
+                    Selected: {colors.find(c => c.value === selectedColor)?.name}
                   </div>
                 )}
               </div>
@@ -211,7 +259,7 @@ const ProductDetail = () => {
                     <SelectValue placeholder="Select size" />
                   </SelectTrigger>
                   <SelectContent>
-                    {product.availableSizes.map((size) => (
+                    {sizes.map((size) => (
                       <SelectItem key={size.id} value={size.name}>
                         {size.name} ({size.dimensions})
                       </SelectItem>
@@ -252,34 +300,44 @@ const ProductDetail = () => {
               
               {/* Add to Cart Button */}
               <Button 
-                className="w-full bg-furniture-primary hover:bg-furniture-primary/90"
+                className="w-full"
+                size="lg"
                 onClick={handleAddToCart}
               >
-                <ShoppingCart className="mr-2 h-5 w-5" />
+                <ShoppingCart className="mr-2" size={20} />
                 Add to Cart
               </Button>
-              
-              {/* Product Info Boxes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <div className="p-4 bg-gray-50 rounded-lg flex items-start gap-3">
-                  <Truck className="text-furniture-primary" />
+            </div>
+            
+            {/* Product Features */}
+            <div className="border-t pt-6 mt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-start gap-3">
+                  <Truck size={24} className="text-furniture-primary" />
                   <div>
-                    <h3 className="font-medium text-sm">Free Delivery</h3>
-                    <p className="text-xs text-gray-500">For orders above $500</p>
+                    <h3 className="font-medium">Free Delivery</h3>
+                    <p className="text-sm text-gray-600">For orders over $500</p>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg flex items-start gap-3">
-                  <Clock className="text-furniture-primary" />
+                <div className="flex items-start gap-3">
+                  <Clock size={24} className="text-furniture-primary" />
                   <div>
-                    <h3 className="font-medium text-sm">Estimated Delivery</h3>
-                    <p className="text-xs text-gray-500">3-5 business days</p>
+                    <h3 className="font-medium">Estimated Delivery</h3>
+                    <p className="text-sm text-gray-600">3-5 business days</p>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg flex items-start gap-3">
-                  <Shield className="text-furniture-primary" />
+                <div className="flex items-start gap-3">
+                  <Shield size={24} className="text-furniture-primary" />
                   <div>
-                    <h3 className="font-medium text-sm">2-Year Warranty</h3>
-                    <p className="text-xs text-gray-500">On all furniture items</p>
+                    <h3 className="font-medium">Quality Guarantee</h3>
+                    <p className="text-sm text-gray-600">2-year warranty</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Pencil size={24} className="text-furniture-primary" />
+                  <div>
+                    <h3 className="font-medium">Customization</h3>
+                    <p className="text-sm text-gray-600">Available on request</p>
                   </div>
                 </div>
               </div>
@@ -289,95 +347,95 @@ const ProductDetail = () => {
         
         {/* Reviews Section */}
         <div className="mt-16">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-serif">Customer Reviews</h2>
-            <Button onClick={() => navigate(`/review/${productId}`)} className="flex items-center">
-              <Pencil className="mr-2 h-4 w-4" />
-              Write a Review
-            </Button>
-          </div>
-          
-          {/* Review Cards */}
+          <h2 className="text-2xl font-serif mb-6">Customer Reviews</h2>
           <div className="space-y-6">
-            {reviews.map(review => (
-              <div key={review.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                <div className="flex justify-between mb-2">
-                  <h3 className="font-medium">{review.author}</h3>
-                  <span className="text-sm text-gray-500">{review.date}</span>
-                </div>
-                <div className="flex mb-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star 
-                      key={i} 
-                      size={16} 
-                      fill={i < review.rating ? "gold" : "none"} 
-                      color={i < review.rating ? "gold" : "gray"} 
-                    />
-                  ))}
+            {reviews.map((review) => (
+              <div key={review.id} className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-medium">{review.author}</h3>
+                    <div className="flex items-center gap-2">
+                      <div className="flex">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star 
+                            key={i} 
+                            size={16} 
+                            fill={i < review.rating ? "gold" : "none"} 
+                            color={i < review.rating ? "gold" : "gray"} 
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-500">{review.date}</span>
+                    </div>
+                  </div>
                 </div>
                 <p className="text-gray-700">{review.comment}</p>
               </div>
             ))}
           </div>
         </div>
-        
-        {/* Custom Size Modal */}
-        <Dialog open={isCustomSizeModalOpen} onOpenChange={setIsCustomSizeModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Custom Size</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="width">Width (cm)</Label>
-                  <Input 
-                    id="width" 
-                    value={customWidth} 
-                    onChange={(e) => setCustomWidth(e.target.value)} 
-                    type="number" 
-                    min="1"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="height">Height (cm)</Label>
-                  <Input 
-                    id="height" 
-                    value={customHeight} 
-                    onChange={(e) => setCustomHeight(e.target.value)} 
-                    type="number" 
-                    min="1"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="depth">Depth (cm)</Label>
-                  <Input 
-                    id="depth" 
-                    value={customDepth} 
-                    onChange={(e) => setCustomDepth(e.target.value)} 
-                    type="number" 
-                    min="1"
-                  />
-                </div>
+      </main>
+      
+      {/* Custom Size Modal */}
+      <Dialog open={isCustomSizeModalOpen} onOpenChange={setIsCustomSizeModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Custom Size Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="width">Width (cm)</Label>
+                <Input
+                  id="width"
+                  value={customWidth}
+                  onChange={(e) => setCustomWidth(e.target.value)}
+                  type="number"
+                  min="1"
+                />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="notes">Additional Notes</Label>
-                <textarea
-                  id="notes"
-                  className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  placeholder="Any special requirements or details..."
-                  value={customNotes}
-                  onChange={(e) => setCustomNotes(e.target.value)}
+              <div>
+                <Label htmlFor="height">Height (cm)</Label>
+                <Input
+                  id="height"
+                  value={customHeight}
+                  onChange={(e) => setCustomHeight(e.target.value)}
+                  type="number"
+                  min="1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="depth">Depth (cm)</Label>
+                <Input
+                  id="depth"
+                  value={customDepth}
+                  onChange={(e) => setCustomDepth(e.target.value)}
+                  type="number"
+                  min="1"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCustomSizeModalOpen(false)}>Cancel</Button>
-              <Button onClick={handleSubmitCustomSize}>Save Custom Size</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </main>
+            <div>
+              <Label htmlFor="notes">Additional Notes</Label>
+              <Input
+                id="notes"
+                value={customNotes}
+                onChange={(e) => setCustomNotes(e.target.value)}
+                placeholder="Any special requirements..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCustomSizeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmitCustomSize}>
+              Save Custom Size
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Footer />
     </div>
   );

@@ -1,62 +1,99 @@
-
-import React, { useState } from 'react';
-import { products, categories, colors } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { Filter, ChevronDown, ChevronUp, X, Loader2 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
-import { Filter, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { Product } from '../types';
+import { Product, Color } from '../types';
+import { api } from '../lib/api';
 
 const ProductsPage = () => {
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(products);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [colors, setColors] = useState<Color[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [colorFilter, setColorFilter] = useState<number | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
   const [sortBy, setSortBy] = useState<string>('featured');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // Fetch initial data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [productsData, categoriesData] = await Promise.all([
+          api.getAllProducts(),
+          api.getAllCategories()
+        ]);
+        
+        setProducts(productsData);
+        setFilteredProducts(productsData);
+        setCategories(categoriesData);
+        
+        // Get unique colors from all products
+        const allColors = new Set<string>();
+        productsData.forEach(product => {
+          product.availableColors.forEach(color => 
+            allColors.add(JSON.stringify(color))
+          );
+        });
+        setColors(Array.from(allColors).map(c => JSON.parse(c) as Color));
+        
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to load products. Please try again later.');
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
   // Filter and sort products
-  const handleFilter = () => {
-    let filtered = [...products];
+  const handleFilter = async () => {
+    try {
+      let filtered = [...products];
 
-    // Filter by category
-    if (categoryFilter) {
-      filtered = filtered.filter(p => p.categoryId === categoryFilter);
+      // Filter by category
+      if (categoryFilter) {
+        filtered = await api.getProductsByCategory(categoryFilter);
+      }
+
+      // Filter by color
+      if (colorFilter) {
+        filtered = filtered.filter(p => 
+          p.availableColors.some(c => c.id === colorFilter)
+        );
+      }
+
+      // Filter by price
+      filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+
+      // Sort products
+      switch (sortBy) {
+        case 'price-low':
+          filtered.sort((a, b) => a.price - b.price);
+          break;
+        case 'price-high':
+          filtered.sort((a, b) => b.price - a.price);
+          break;
+        case 'newest':
+          filtered.sort((a, b) => b.id - a.id);
+          break;
+        case 'bestseller':
+          filtered = filtered.filter(p => p.bestseller);
+          break;
+        case 'featured':
+          filtered = filtered.filter(p => p.featured);
+          break;
+      }
+
+      setFilteredProducts(filtered);
+    } catch (err) {
+      setError('Failed to apply filters. Please try again.');
     }
-
-    // Filter by color
-    if (colorFilter) {
-      filtered = filtered.filter(p => p.availableColors.some(c => c.id === colorFilter));
-    }
-
-    // Filter by price
-    filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
-
-    // Sort products
-    switch (sortBy) {
-      case 'price-low':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case 'newest':
-        filtered.sort((a, b) => b.id - a.id);
-        break;
-      case 'bestseller':
-        filtered = filtered.sort((a, b) => {
-          if (a.bestseller && !b.bestseller) return -1;
-          if (!a.bestseller && b.bestseller) return 1;
-          return 0;
-        });
-        break;
-      default:
-        filtered.sort((a, b) => {
-          if (a.featured && !b.featured) return -1;
-          if (!a.featured && b.featured) return 1;
-          return 0;
-        });
-    }
-
-    setFilteredProducts(filtered);
   };
 
   // Reset filters
@@ -76,9 +113,39 @@ const ProductsPage = () => {
   };
 
   // Effect to apply filters
-  React.useEffect(() => {
-    handleFilter();
-  }, [categoryFilter, colorFilter, priceRange, sortBy]);
+  useEffect(() => {
+    if (!loading) {
+      handleFilter();
+    }
+  }, [categoryFilter, colorFilter, priceRange, sortBy, loading]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-furniture-secondary flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="animate-spin" size={24} />
+          <span>Loading products...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-furniture-secondary flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-sm text-center max-w-md">
+          <h3 className="font-serif text-xl font-medium mb-2 text-red-600">Error</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-furniture-primary text-white rounded-md hover:bg-furniture-accent transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-furniture-secondary py-8">

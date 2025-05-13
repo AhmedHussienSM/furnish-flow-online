@@ -1,37 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { products } from '../../data/mockData';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Plus } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const ProductForm = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   
-  // Find product if editing existing one
-  const existingProduct = productId && productId !== 'new' 
-    ? products.find(p => p.id === parseInt(productId))
-    : null;
-  
+  // Initialize form data with empty values
   const [formData, setFormData] = useState({
-    name: existingProduct?.name || '',
-    sku: existingProduct?.sku || '',
-    price: existingProduct?.price || 0,
-    stock: existingProduct?.stock || 1,
-    description: existingProduct?.description || '',
-    categoryId: existingProduct?.categoryId || 1,
-    featured: existingProduct?.featured || false,
-    bestseller: existingProduct?.bestseller || false
+    name: '',
+    sku: '',
+    price: '',
+    stock: '',
+    description: '',
+    categoryId: 1,
+    featured: false,
+    bestseller: false
   });
-  
-  const [images, setImages] = useState<string[]>(existingProduct?.images || ['/placeholder.svg']);
-  
+
   // Mock color options for demo
   const colorOptions = [
     { id: 1, name: 'Natural Oak', value: '#D2B48C' },
@@ -51,33 +46,96 @@ const ProductForm = () => {
     { id: 5, name: 'Custom', dimensions: 'Made to order' }
   ];
   
-  const [selectedColors, setSelectedColors] = useState<number[]>(
-    existingProduct?.availableColors.map(c => c.id) || [1, 2, 3]
-  );
+  const [selectedColors, setSelectedColors] = useState<number[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<number[]>([]);
   
-  const [selectedSizes, setSelectedSizes] = useState<number[]>(
-    existingProduct?.availableSizes.map(s => s.id) || [1, 2, 3]
-  );
+  // Fetch product data when component mounts
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (productId && productId !== 'new') {
+        try {
+          setLoading(true);
+          const product = await api.getProductById(parseInt(productId));
+          console.log('Fetched product:', product); // Debug log
+          
+          if (!product) {
+            toast({
+              title: "Error",
+              description: "Product not found",
+              variant: "destructive"
+            });
+            navigate('/admin/products');
+            return;
+          }
+          
+          // Update form data with fetched product
+          setFormData({
+            name: product.name || '',
+            sku: product.sku || '',
+            price: product.price || 0,
+            stock: product.stock || 0,
+            description: product.description || '',
+            categoryId: product.categoryId || 1,
+            featured: Boolean(product.featured),
+            bestseller: Boolean(product.bestseller)
+          });
+          
+          // Update colors and sizes if they exist
+          if (product.availableColors && Array.isArray(product.availableColors)) {
+            const colorIds = product.availableColors
+              .filter(color => color && typeof color.id === 'number')
+              .map(color => color.id);
+            console.log('Setting color IDs:', colorIds);
+            setSelectedColors(colorIds);
+          } else {
+            setSelectedColors([]); // Reset to empty if no colors available
+          }
+          
+          if (product.availableSizes && Array.isArray(product.availableSizes)) {
+            const sizeIds = product.availableSizes
+              .filter(size => size && typeof size.id === 'number')
+              .map(size => size.id);
+            console.log('Setting size IDs:', sizeIds);
+            setSelectedSizes(sizeIds);
+          } else {
+            setSelectedSizes([]); // Reset to empty if no sizes available
+          }
+        } catch (error) {
+          console.error('Error fetching product:', error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch product details",
+            variant: "destructive"
+          });
+          navigate('/admin/products');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    fetchProduct();
+  }, [productId, navigate]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
     if (type === 'checkbox') {
       const checkbox = e.target as HTMLInputElement;
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         [name]: checkbox.checked
-      });
+      }));
     } else if (type === 'number') {
-      setFormData({
-        ...formData,
-        [name]: parseFloat(value)
-      });
+      setFormData(prev => ({
+        ...prev,
+        [name]: value === '' ? '' : parseFloat(value)
+      }));
     } else {
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         [name]: value
-      });
+      }));
     }
   };
   
@@ -97,24 +155,83 @@ const ProductForm = () => {
     }
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In a real app, you'd send this data to your backend
-    // For now, we'll just show a success message
-    toast({
-      title: existingProduct ? "Product updated" : "Product created",
-      description: `Successfully ${existingProduct ? 'updated' : 'added'} ${formData.name}`,
-    });
-    
-    navigate('/admin/products');
+    try {
+      setLoading(true);
+      
+      // Format the data to match server expectations
+      const productData = {
+        name: formData.name,
+        sku: formData.sku,
+        price: Number(formData.price),
+        stock: Number(formData.stock),
+        description: formData.description,
+        categoryId: Number(formData.categoryId),
+        featured: Boolean(formData.featured),
+        bestseller: Boolean(formData.bestseller),
+        availableColors: selectedColors.map(id => {
+          const color = colorOptions.find(c => c.id === id);
+          return {
+            name: color?.name || '',
+            value: color?.value || ''
+          };
+        }),
+        availableSizes: selectedSizes.map(id => {
+          const size = sizeOptions.find(s => s.id === id);
+          return {
+            name: size?.name || '',
+            dimensions: size?.dimensions || ''
+          };
+        })
+      };
+
+      if (productId && productId !== 'new') {
+        await api.updateProduct(parseInt(productId), productData);
+        toast({
+          title: "Success",
+          description: "Product updated successfully"
+        });
+      } else {
+        await api.createProduct(productData);
+        toast({
+          title: "Success",
+          description: "Product created successfully"
+        });
+      }
+      
+      navigate('/admin/products');
+    } catch (error) {
+      console.error('Error submitting product:', error);
+      toast({
+        title: "Error",
+        description: productId && productId !== 'new' ? "Failed to update product" : "Failed to create product",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="p-6 flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <span>Loading...</span>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
       <div className="p-6">
         <h1 className="text-3xl font-serif font-medium mb-6">
-          {existingProduct ? 'Edit Product' : 'Add New Product'}
+          {productId && productId !== 'new' ? 'Edit Product' : 'Add New Product'}
         </h1>
         
         <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -154,7 +271,7 @@ const ProductForm = () => {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={formData.price}
+                    value={formData.price === '' ? '' : Number(formData.price)}
                     onChange={handleInputChange}
                     required
                   />
@@ -167,7 +284,7 @@ const ProductForm = () => {
                     name="stock"
                     type="number"
                     min="0"
-                    value={formData.stock}
+                    value={formData.stock === '' ? '' : Number(formData.stock)}
                     onChange={handleInputChange}
                     required
                   />
@@ -242,7 +359,7 @@ const ProductForm = () => {
                   {colorOptions.map(color => (
                     <div 
                       key={color.id} 
-                      className={`flex items-center p-2 rounded border ${
+                      className={`flex items-center p-2 rounded border cursor-pointer ${
                         selectedColors.includes(color.id) ? 'border-furniture-primary bg-blue-50' : 'border-gray-200'
                       }`}
                       onClick={() => handleColorToggle(color.id)}
@@ -264,7 +381,7 @@ const ProductForm = () => {
                   {sizeOptions.map(size => (
                     <div 
                       key={size.id} 
-                      className={`flex items-center p-2 rounded border ${
+                      className={`flex items-center p-2 rounded border cursor-pointer ${
                         selectedSizes.includes(size.id) ? 'border-furniture-primary bg-blue-50' : 'border-gray-200'
                       }`}
                       onClick={() => handleSizeToggle(size.id)}
@@ -277,9 +394,10 @@ const ProductForm = () => {
               </div>
               
               {/* Images Section */}
+              
               <div className="space-y-4 md:col-span-2">
                 <h2 className="text-xl font-medium">Product Images</h2>
-                
+                 {/* 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                   {images.map((image, index) => (
                     <div key={index} className="aspect-square relative border rounded-md overflow-hidden">
@@ -302,14 +420,16 @@ const ProductForm = () => {
                     </div>
                   ))}
                   
-                  <button
+                <button
                     type="button"
                     className="aspect-square border-2 border-dashed rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400"
                     onClick={() => setImages([...images, '/placeholder.svg'])}
                   >
                     <Plus />
                   </button>
+                 
                 </div>
+                 */}
               </div>
             </div>
             
@@ -322,7 +442,7 @@ const ProductForm = () => {
                 Cancel
               </Button>
               <Button type="submit">
-                {existingProduct ? 'Update Product' : 'Create Product'}
+                {productId && productId !== 'new' ? 'Update Product' : 'Create Product'}
               </Button>
             </div>
           </form>
