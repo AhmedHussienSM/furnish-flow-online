@@ -1,0 +1,57 @@
+
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { products, categories } from '../data/mockData';
+import ProductCard from '../components/ProductCard';
+
+const CategoryPage = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const [category, setCategory] = useState(categories.find(c => c.slug === slug));
+  const [categoryProducts, setCategoryProducts] = useState(products.filter(p => p.categoryId === category?.id));
+
+  useEffect(() => {
+    const foundCategory = categories.find(c => c.slug === slug);
+    setCategory(foundCategory);
+    if (foundCategory) {
+      setCategoryProducts(products.filter(p => p.categoryId === foundCategory.id));
+    }
+  }, [slug]);
+
+  if (!category) {
+    return (
+      <div className="min-h-screen bg-furniture-secondary py-8">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="font-serif text-3xl md:text-4xl font-medium mb-6">Category Not Found</h1>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-furniture-secondary py-8">
+      <div className="container mx-auto px-4">
+        <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
+          <h1 className="font-serif text-3xl md:text-4xl font-medium mb-4">{category.name}</h1>
+          <p className="text-gray-600 max-w-3xl">{category.description}</p>
+        </div>
+
+        {categoryProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {categoryProducts.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+            <h2 className="font-serif text-2xl font-medium mb-4">No products found</h2>
+            <p className="text-gray-600">
+              We don't have any products in this category at the moment. Please check back later.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default CategoryPage;
